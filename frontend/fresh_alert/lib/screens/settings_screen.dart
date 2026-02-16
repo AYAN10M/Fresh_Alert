@@ -6,7 +6,7 @@ class MySettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withOpacity(0.6);
+    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
 
     return Scaffold(
       appBar: AppBar(
@@ -101,7 +101,7 @@ class _SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withOpacity(0.6);
+    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
 
     return Material(
       color: Colors.transparent,

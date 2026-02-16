@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fresh_alert/screens/qr_scanner_screen.dart';
 
 class MyDashboard extends StatelessWidget {
   final bool isDark;
@@ -48,7 +49,21 @@ class MyDashboard extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     iconSize: 18,
                     icon: const Icon(Icons.add_rounded),
-                    onPressed: () {},
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const QrScannerScreen(),
+                        ),
+                      );
+
+                      if (result != null && context.mounted) {
+                        print("Scanned QR: $result");
+
+                        // Show success dialog with scanned value
+                        _showScanResultDialog(context, result);
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -145,6 +160,68 @@ class MyDashboard extends StatelessWidget {
             const _ExpiryItemCard(name: "Yogurt", daysLeft: 3),
           ],
         ),
+      ),
+    );
+  }
+
+  // Show dialog with scan result
+  void _showScanResultDialog(BuildContext context, String qrCode) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 12),
+            const Text('QR Code Scanned'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Scanned Value:',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withAlpha(100)),
+              ),
+              child: SelectableText(
+                qrCode,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Next step: Add expiry date and save to inventory',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Add to inventory feature coming soon!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Add to Inventory'),
+          ),
+        ],
       ),
     );
   }
