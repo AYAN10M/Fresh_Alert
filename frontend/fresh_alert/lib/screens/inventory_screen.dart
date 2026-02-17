@@ -44,14 +44,35 @@ class _MyInventoryState extends State<MyInventory> {
 
       body: Column(
         children: [
-          /// SEARCH + FILTER
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(child: _buildSearchField(theme, secondaryText)),
-                const SizedBox(width: 12),
-                _buildFilterButton(theme),
+                /// FULL WIDTH SEARCH
+                _buildSearchField(theme, secondaryText),
+
+                const SizedBox(height: 14),
+
+                /// GROUP BY + SORT BY
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildOptionButton(
+                        theme,
+                        icon: Icons.grid_view_rounded,
+                        label: "Group By",
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildOptionButton(
+                        theme,
+                        icon: Icons.swap_vert_rounded,
+                        label: "Sort By",
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -93,19 +114,36 @@ class _MyInventoryState extends State<MyInventory> {
     );
   }
 
-  Widget _buildFilterButton(ThemeData theme) {
+  Widget _buildOptionButton(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+  }) {
     return Container(
       height: 44,
-      width: 44,
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor, width: 0.6),
       ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: const Icon(Icons.tune_rounded, size: 18),
-        onPressed: () {},
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          // TODO: Add bottom sheet or logic
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
