@@ -29,6 +29,12 @@ class _MyInventoryState extends State<MyInventory> {
     _loadPreferences();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -48,7 +54,7 @@ class _MyInventoryState extends State<MyInventory> {
     final data = _box.values.toList();
 
     List<InventoryItem> items = data
-        .map((item) => InventoryItem.fromMap(Map<String, dynamic>.from(item)))
+        .map((e) => InventoryItem.fromMap(Map<String, dynamic>.from(e)))
         .toList();
 
     final query = _searchController.text.toLowerCase();
@@ -60,9 +66,7 @@ class _MyInventoryState extends State<MyInventory> {
 
     _applySorting(items);
 
-    setState(() {
-      _items = items;
-    });
+    setState(() => _items = items);
   }
 
   void _applySorting(List<InventoryItem> items) {
@@ -82,55 +86,50 @@ class _MyInventoryState extends State<MyInventory> {
     }
   }
 
-  void _showSortOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: SortOption.values.map((option) {
-          return ListTile(
-            title: Text(option.name),
-            trailing: _currentSort == option ? const Icon(Icons.check) : null,
-            onTap: () {
-              setState(() => _currentSort = option);
-              _savePreferences();
-              _loadItems();
-              Navigator.pop(context);
-            },
-          );
-        }).toList(),
-      ),
-    );
+  String _sortLabel(SortOption option) {
+    switch (option) {
+      case SortOption.expiryNearest:
+        return "Expiry (Nearest)";
+      case SortOption.expiryFarthest:
+        return "Expiry (Farthest)";
+      case SortOption.recentlyAdded:
+        return "Recently Added";
+      case SortOption.quantity:
+        return "Quantity";
+    }
   }
 
-  Widget _buildOptionButton(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor, width: 0.6),
+  void _showSortOptions() {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: SortOption.values.map((option) {
+              final selected = _currentSort == option;
+
+              return ListTile(
+                title: Text(_sortLabel(option)),
+                trailing: selected
+                    ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                    : null,
+                onTap: () {
+                  setState(() => _currentSort = option);
+                  _savePreferences();
+                  _loadItems();
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -139,73 +138,79 @@ class _MyInventoryState extends State<MyInventory> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
         title: const Text(
           "Inventory",
           style: TextStyle(
-            fontFamily: 'LoveLight',
-            fontSize: 40,
-            letterSpacing: 1,
-            fontWeight: FontWeight.w600,
+            fontFamily: 'Manrope',
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             child: Column(
               children: [
-                /// SEARCH
+                // SEARCH
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.dividerColor, width: 0.6),
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => _loadItems(),
-                    decoration: InputDecoration(
-                      hintText: "Search items",
-                      hintStyle: TextStyle(color: secondaryText),
-                      icon: Icon(Icons.search_rounded, color: secondaryText),
-                      border: InputBorder.none,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => _loadItems(),
+                          decoration: const InputDecoration(
+                            hintText: "Search groceries...",
+                            hintStyle: TextStyle(
+                              fontFamily: 'Manrope',
+                              color: Colors.white60,
+                            ),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
-                /// GROUP + SORT
+                // GROUP & SORT
                 Row(
                   children: [
                     Expanded(
-                      child: _buildOptionButton(
-                        theme,
-                        icon: Icons.grid_view_rounded,
-                        label: "Group By",
+                      child: _ActionButton(
+                        icon: Icons.category_rounded,
+                        label: _groupByCategory ? "Grouped" : "Group By",
+                        active: _groupByCategory,
                         onTap: () {
-                          setState(() {
-                            _groupByCategory = !_groupByCategory;
-                          });
+                          setState(() => _groupByCategory = !_groupByCategory);
                           _savePreferences();
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: _buildOptionButton(
-                        theme,
+                      child: _ActionButton(
                         icon: Icons.swap_vert_rounded,
-                        label: "Sort By",
+                        label: "Sort",
+                        active: false,
                         onTap: _showSortOptions,
                       ),
                     ),
@@ -215,30 +220,38 @@ class _MyInventoryState extends State<MyInventory> {
             ),
           ),
 
-          /// LIST
+          const SizedBox(height: 10),
+
           Expanded(
             child: _items.isEmpty
-                ? const Center(child: Text("No inventory items found"))
+                ? Center(
+                    child: Text(
+                      "Your kitchen is empty 🛒",
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                  )
                 : _groupByCategory
-                ? _buildGroupedList(theme, secondaryText)
-                : _buildNormalList(theme, secondaryText),
+                ? _buildGroupedList()
+                : _buildNormalList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNormalList(ThemeData theme, Color secondaryText) {
+  Widget _buildNormalList() {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: _items.length,
-      itemBuilder: (_, index) {
-        return _buildInventoryCard(_items[index], theme, secondaryText);
-      },
+      itemBuilder: (_, index) => _InventoryCard(item: _items[index]),
     );
   }
 
-  Widget _buildGroupedList(ThemeData theme, Color secondaryText) {
+  Widget _buildGroupedList() {
     final Map<String, List<InventoryItem>> grouped = {};
 
     for (var item in _items) {
@@ -248,84 +261,140 @@ class _MyInventoryState extends State<MyInventory> {
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: grouped.entries.map((entry) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Text(
               entry.key,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: const TextStyle(
+                fontFamily: 'Manrope',
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 10),
-            ...entry.value.map(
-              (item) => _buildInventoryCard(item, theme, secondaryText),
-            ),
+            const SizedBox(height: 12),
+            ...entry.value.map((item) => _InventoryCard(item: item)),
           ],
         );
       }).toList(),
     );
   }
+}
 
-  Widget _buildInventoryCard(
-    InventoryItem item,
-    ThemeData theme,
-    Color secondaryText,
-  ) {
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      borderRadius: BorderRadius.circular(24),
+      color: active
+          ? theme.colorScheme.primary.withValues(alpha: 0.15)
+          : theme.colorScheme.primary.withValues(alpha: 0.08),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InventoryCard extends StatelessWidget {
+  final InventoryItem item;
+
+  const _InventoryCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final daysLeft = item.expiryDate.difference(DateTime.now()).inDays;
 
     Color statusColor;
     if (daysLeft < 0) {
-      statusColor = Colors.red;
+      statusColor = Colors.redAccent;
     } else if (daysLeft <= 3) {
-      statusColor = Colors.orange;
+      statusColor = Colors.orangeAccent;
     } else {
       statusColor = theme.colorScheme.primary;
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor, width: 0.6),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "Qty: ${item.quantity}",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: secondaryText,
-                    ),
-                  ),
-                ],
-              ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 42,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(4),
             ),
-            Text(
-              "$daysLeft days",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: statusColor,
-              ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Qty: ${item.quantity}",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Text(
+            "$daysLeft d",
+            style: TextStyle(fontWeight: FontWeight.bold, color: statusColor),
+          ),
+        ],
       ),
     );
   }

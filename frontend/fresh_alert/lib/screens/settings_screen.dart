@@ -5,78 +5,122 @@ class MySettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
+    final muted = Colors.white.withValues(alpha: 0.6);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
-        scrolledUnderElevation: 0,
         title: const Text(
           "Settings",
           style: TextStyle(
-            fontFamily: 'LoveLight',
-            fontSize: 40,
-            letterSpacing: 1,
-            fontWeight: FontWeight.w600,
+            fontFamily: 'Manrope',
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
-
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         children: [
-          /// GENERAL
-          Text(
-            "General",
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: secondaryText,
+          // PROFILE / BRAND CARD
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1C),
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 20,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 56,
+                  width: 56,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF1DB954),
+                  ),
+                  child: const Icon(Icons.restaurant, color: Colors.black),
+                ),
+                const SizedBox(width: 18),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      "Fresh Alert",
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Smarter kitchen management",
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 36),
 
-          const _SettingsCard(
-            icon: Icons.notifications_rounded,
-            title: "Notifications",
-            subtitle: "Manage alerts & reminders",
-          ),
+          // GENERAL SECTION
+          const _SectionTitle(title: "General"),
 
           const SizedBox(height: 18),
 
-          const _SettingsCard(
+          const _SettingsTile(
+            icon: Icons.notifications_rounded,
+            title: "Notifications",
+            subtitle: "Expiry alerts & reminders",
+          ),
+
+          const SizedBox(height: 14),
+
+          const _SettingsTile(
             icon: Icons.security_rounded,
             title: "Privacy",
-            subtitle: "Permissions & data control",
+            subtitle: "Local storage & permissions",
           ),
 
-          const SizedBox(height: 56),
+          const SizedBox(height: 36),
 
-          /// ABOUT
-          Text(
-            "About",
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: secondaryText,
-            ),
-          ),
+          // ABOUT SECTION
+          const _SectionTitle(title: "About"),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          const _SettingsCard(
+          const _SettingsTile(
             icon: Icons.info_outline_rounded,
             title: "App Version",
             subtitle: "1.0.0",
             showArrow: false,
           ),
 
-          const SizedBox(height: 72),
+          const SizedBox(height: 60),
 
           Center(
             child: Text(
               "Fresh Alert © 2026",
-              style: theme.textTheme.bodySmall?.copyWith(color: secondaryText),
+              style: TextStyle(
+                fontFamily: 'Manrope',
+                color: muted,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -85,13 +129,33 @@ class MySettings extends StatelessWidget {
   }
 }
 
-class _SettingsCard extends StatelessWidget {
+class _SectionTitle extends StatelessWidget {
+  final String title;
+
+  const _SectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        fontFamily: 'Manrope',
+        color: Colors.white60,
+        fontSize: 12,
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final bool showArrow;
 
-  const _SettingsCard({
+  const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -100,28 +164,32 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
-
     return Material(
-      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      color: const Color(0xFF1C1C1C),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
         onTap: showArrow ? () {} : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.dividerColor, width: 0.6),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
+              Container(
+                height: 44,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.circle,
+                  size: 0, // placeholder, replaced below
+                ),
+              ),
+              // We overlay icon to preserve clean structure
+              PositionedIcon(icon: icon),
 
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
 
               Expanded(
                 child: Column(
@@ -129,16 +197,19 @@ class _SettingsCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: TextStyle(
                         fontFamily: 'Manrope',
                         fontWeight: FontWeight.w600,
+                        fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: secondaryText,
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        color: Colors.white60,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -146,14 +217,33 @@ class _SettingsCard extends StatelessWidget {
               ),
 
               if (showArrow)
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
-                  color: secondaryText,
+                  color: Colors.white38,
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class PositionedIcon extends StatelessWidget {
+  final IconData icon;
+
+  const PositionedIcon({super.key, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(
+      offset: const Offset(-44, 0),
+      child: Container(
+        height: 44,
+        width: 44,
+        alignment: Alignment.center,
+        child: Icon(icon, size: 20, color: const Color(0xFF1DB954)),
       ),
     );
   }
