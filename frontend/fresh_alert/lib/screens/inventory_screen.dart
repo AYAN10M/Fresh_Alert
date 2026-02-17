@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:fresh_alert/models/inventory_item.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+
+enum SortOption { expiryNearest, expiryFarthest, recentlyAdded, quantity }
 
 class MyInventory extends StatefulWidget {
   const MyInventory({super.key});
@@ -8,203 +14,212 @@ class MyInventory extends StatefulWidget {
 }
 
 class _MyInventoryState extends State<MyInventory> {
+  late Box _box;
   late TextEditingController _searchController;
+
+  List<InventoryItem> _items = [];
+
+  SortOption _currentSort = SortOption.expiryNearest;
+  bool _groupByCategory = false;
 
   @override
   void initState() {
     super.initState();
+    _box = Hive.box('inventoryBox');
     _searchController = TextEditingController();
+    _loadItems();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _loadItems() {
+    final data = _box.values.toList();
+
+    List<InventoryItem> items = data
+        .map((item) => InventoryItem.fromMap(Map<String, dynamic>.from(item)))
+        .toList();
+
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
+      items = items
+          .where((item) => item.name.toLowerCase().contains(query))
+          .toList();
+    }
+
+    _applySorting(items);
+
+    setState(() {
+      _items = items;
+    });
+  }
+
+  void _applySorting(List<InventoryItem> items) {
+    switch (_currentSort) {
+      case SortOption.expiryNearest:
+        items.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+        break;
+
+      case SortOption.expiryFarthest:
+        items.sort((a, b) => b.expiryDate.compareTo(a.expiryDate));
+        break;
+
+      case SortOption.recentlyAdded:
+        items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+
+      case SortOption.quantity:
+        items.sort((a, b) => b.quantity.compareTo(a.quantity));
+        break;
+    }
+  }
+
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: SortOption.values.map((option) {
+          return ListTile(
+            title: Text(option.name),
+            onTap: () {
+              setState(() {
+                _currentSort = option;
+              });
+              _loadItems();
+              Navigator.pop(context);
+            },
+          );
+        }).toList(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final secondaryText = theme.colorScheme.onSurface.withAlpha(153);
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          "Inventory",
-          style: TextStyle(
-            fontFamily: 'LoveLight',
-            fontSize: 40,
-            letterSpacing: 1,
-            fontWeight: FontWeight.w600,
+        title: const Text("Inventory"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_vert),
+            onPressed: _showSortOptions,
           ),
-        ),
+          IconButton(
+            icon: Icon(_groupByCategory ? Icons.grid_view : Icons.view_list),
+            onPressed: () {
+              setState(() {
+                _groupByCategory = !_groupByCategory;
+              });
+            },
+          ),
+        ],
       ),
-
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Column(
-              children: [
-                /// FULL WIDTH SEARCH
-                _buildSearchField(theme, secondaryText),
-
-                const SizedBox(height: 14),
-
-                /// GROUP BY + SORT BY
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildOptionButton(
-                        theme,
-                        icon: Icons.grid_view_rounded,
-                        label: "Group By",
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildOptionButton(
-                        theme,
-                        icon: Icons.swap_vert_rounded,
-                        label: "Sort By",
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => _loadItems(),
+              decoration: const InputDecoration(
+                hintText: "Search items",
+                prefixIcon: Icon(Icons.search),
+              ),
             ),
           ),
-
-          /// LIST
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: 15,
-              itemBuilder: (context, index) =>
-                  _buildInventoryCard(context, theme, secondaryText, index),
-            ),
+            child: _items.isEmpty
+                ? const Center(child: Text("No items found"))
+                : _groupByCategory
+                ? _buildGroupedList(theme)
+                : _buildNormalList(theme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchField(ThemeData theme, Color secondaryText) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      height: 44,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor, width: 0.6),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration(
-          hintText: "Search items",
-          hintStyle: TextStyle(color: secondaryText),
-          icon: Icon(Icons.search_rounded, color: secondaryText),
-          border: InputBorder.none,
-        ),
-        onChanged: (_) => setState(() {}),
-      ),
+  Widget _buildNormalList(ThemeData theme) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _items.length,
+      itemBuilder: (_, index) {
+        return _buildInventoryCard(_items[index], theme);
+      },
     );
   }
 
-  Widget _buildOptionButton(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-  }) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor, width: 0.6),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // TODO: Add bottom sheet or logic
-        },
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildGroupedList(ThemeData theme) {
+    final Map<String, List<InventoryItem>> grouped = {};
+
+    for (var item in _items) {
+      final category = item.category ?? "Uncategorized";
+      grouped.putIfAbsent(category, () => []);
+      grouped[category]!.add(item);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: grouped.entries.map((entry) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 6),
+            const SizedBox(height: 16),
             Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+              entry.key,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 10),
+            ...entry.value
+                .map((item) => _buildInventoryCard(item, theme))
+                .toList(),
           ],
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildInventoryCard(
-    BuildContext context,
-    ThemeData theme,
-    Color secondaryText,
-    int index,
-  ) {
-    final daysLeft = (index % 7) + 1;
+  Widget _buildInventoryCard(InventoryItem item, ThemeData theme) {
+    final daysLeft = item.expiryDate.difference(DateTime.now()).inDays;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          onTap: () {},
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor, width: 0.6),
-            ),
-            child: Row(
+    Color statusColor;
+    if (daysLeft < 0) {
+      statusColor = Colors.red;
+    } else if (daysLeft <= 3) {
+      statusColor = Colors.orange;
+    } else {
+      statusColor = theme.colorScheme.primary;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Product ${index + 1}",
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontFamily: 'Manrope',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "SKU: P${1001 + index}",
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: secondaryText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 Text(
-                  "$daysLeft days",
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                Text("Qty: ${item.quantity} | ${item.location ?? '-'}"),
               ],
             ),
           ),
-        ),
+          Text(
+            "$daysLeft days",
+            style: TextStyle(fontWeight: FontWeight.bold, color: statusColor),
+          ),
+        ],
       ),
     );
   }

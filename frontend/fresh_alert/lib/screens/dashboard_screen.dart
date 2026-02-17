@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:fresh_alert/models/inventory_item.dart';
 import 'package:fresh_alert/screens/qr_scanner_screen.dart';
 
-class MyDashboard extends StatelessWidget {
+class MyDashboard extends StatefulWidget {
   final bool isDark;
   final Function(bool) onToggleTheme;
 
@@ -12,214 +14,195 @@ class MyDashboard extends StatelessWidget {
   });
 
   @override
+  State<MyDashboard> createState() => _MyDashboardState();
+}
+
+class _MyDashboardState extends State<MyDashboard> {
+  late Box _box;
+  List<InventoryItem> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _box = Hive.box('inventoryBox');
+    _loadItems();
+  }
+
+  void _loadItems() {
+    final data = _box.values.toList();
+    setState(() {
+      _items = data
+          .map((item) => InventoryItem.fromMap(Map<String, dynamic>.from(item)))
+          .toList();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 600;
-    const double actionHeight = 36;
-    const Duration animationDuration = Duration(milliseconds: 320);
+
+    final today = DateTime.now();
+
+    final totalItems = _items.length;
+    final expired = _items.where((e) => e.expiryDate.isBefore(today)).length;
+
+    final expiringSoon = _items.where((e) {
+      final diff = e.expiryDate.difference(today).inDays;
+      return diff >= 0 && diff <= 3;
+    }).length;
+
+    final addedToday = _items
+        .where(
+          (e) =>
+              e.createdAt.year == today.year &&
+              e.createdAt.month == today.month &&
+              e.createdAt.day == today.day,
+        )
+        .length;
+
+    final expiringItems = _items.where((e) {
+      final diff = e.expiryDate.difference(today).inDays;
+      return diff >= 0 && diff <= 3;
+    }).toList()..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Dashboard',
-          style: TextStyle(
-            fontFamily: 'LoveLight',
-            fontSize: 40,
-            letterSpacing: 1,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: const Text("Dashboard"),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                /// ADD BUTTON
-                Container(
-                  height: actionHeight,
-                  width: actionHeight,
-                  decoration: BoxDecoration(
-                    color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: theme.dividerColor, width: 0.6),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    iconSize: 18,
-                    icon: const Icon(Icons.add_rounded),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const QrScannerScreen(),
-                        ),
-                      );
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+              );
 
-                      if (result != null && context.mounted) {
-                        print("Scanned QR: $result");
-
-                        // Show success dialog with scanned value
-                        _showScanResultDialog(context, result);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                /// THEME TOGGLE
-                GestureDetector(
-                  onTap: () => onToggleTheme(!isDark),
-                  child: AnimatedContainer(
-                    duration: animationDuration,
-                    curve: Curves.easeInOut,
-                    height: actionHeight,
-                    width: 72,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: theme.dividerColor, width: 0.6),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            AnimatedOpacity(
-                              duration: animationDuration,
-                              opacity: isDark ? 0.4 : 1,
-                              child: const Icon(
-                                Icons.light_mode_rounded,
-                                size: 16,
-                              ),
-                            ),
-                            AnimatedOpacity(
-                              duration: animationDuration,
-                              opacity: isDark ? 1 : 0.4,
-                              child: const Icon(
-                                Icons.dark_mode_rounded,
-                                size: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        AnimatedAlign(
-                          duration: animationDuration,
-                          curve: Curves.easeInOut,
-                          alignment: isDark
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: AnimatedContainer(
-                            duration: animationDuration,
-                            curve: Curves.easeInOut,
-                            height: 26,
-                            width: 28,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              if (result != null && context.mounted) {
+                _showAddFromQRDialog(result);
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(widget.isDark ? Icons.dark_mode : Icons.light_mode),
+            onPressed: () => widget.onToggleTheme(!widget.isDark),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Overview", style: theme.textTheme.titleLarge),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
             GridView.count(
               crossAxisCount: isMobile ? 2 : 4,
-              crossAxisSpacing: 18,
-              mainAxisSpacing: 18,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                _DashboardCard(title: "Total Items", value: "34"),
-                _DashboardCard(title: "Expiring Soon", value: "5"),
-                _DashboardCard(title: "Expired", value: "2"),
-                _DashboardCard(title: "Added Today", value: "3"),
+              children: [
+                _DashboardCard(
+                  title: "Total Items",
+                  value: totalItems.toString(),
+                ),
+                _DashboardCard(
+                  title: "Expiring Soon",
+                  value: expiringSoon.toString(),
+                ),
+                _DashboardCard(title: "Expired", value: expired.toString()),
+                _DashboardCard(
+                  title: "Added Today",
+                  value: addedToday.toString(),
+                ),
               ],
             ),
-            const SizedBox(height: 56),
+
+            const SizedBox(height: 40),
+
             Text("Expiring Soon", style: theme.textTheme.titleLarge),
-            const SizedBox(height: 24),
-            const _ExpiryItemCard(name: "Milk", daysLeft: 2),
-            const _ExpiryItemCard(name: "Spinach", daysLeft: 1),
-            const _ExpiryItemCard(name: "Yogurt", daysLeft: 3),
+            const SizedBox(height: 20),
+
+            if (expiringItems.isEmpty)
+              const Text("No items expiring soon")
+            else
+              ...expiringItems.map((item) {
+                final daysLeft = item.expiryDate.difference(today).inDays;
+                return _ExpiryItemCard(name: item.name, daysLeft: daysLeft);
+              }),
           ],
         ),
       ),
     );
   }
 
-  // Show dialog with scan result
-  void _showScanResultDialog(BuildContext context, String qrCode) {
+  void _showAddFromQRDialog(String qrCode) {
+    final nameController = TextEditingController();
+    final quantityController = TextEditingController(text: "1");
+    DateTime? expiryDate;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 12),
-            const Text('QR Code Scanned'),
-          ],
-        ),
+      builder: (_) => AlertDialog(
+        title: const Text("Add Scanned Item"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Scanned Value:',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            Text("QR: $qrCode"),
+            const SizedBox(height: 10),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Product Name"),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.withAlpha(100)),
-              ),
-              child: SelectableText(
-                qrCode,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-              ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Quantity"),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Next step: Add expiry date and save to inventory',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) {
+                  expiryDate = picked;
+                }
+              },
+              child: const Text("Select Expiry Date"),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Add to inventory feature coming soon!'),
-                  duration: Duration(seconds: 2),
-                ),
+              if (nameController.text.isEmpty || expiryDate == null) return;
+
+              final item = InventoryItem(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: nameController.text,
+                barcode: qrCode,
+                buyDate: DateTime.now(),
+                expiryDate: expiryDate!,
+                quantity: int.tryParse(quantityController.text) ?? 1,
+                createdAt: DateTime.now(),
               );
+
+              _box.add(item.toMap());
+              _loadItems();
+              Navigator.pop(context);
             },
-            child: const Text('Add to Inventory'),
+            child: const Text("Add"),
           ),
         ],
       ),
@@ -238,7 +221,7 @@ class _DashboardCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -251,19 +234,10 @@ class _DashboardCard extends StatelessWidget {
           Text(
             value,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontSize: 48,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'Manrope',
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
+          Text(title, style: theme.textTheme.bodySmall),
         ],
       ),
     );
@@ -280,31 +254,29 @@ class _ExpiryItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    Color statusColor;
+    if (daysLeft < 0) {
+      statusColor = Colors.red;
+    } else if (daysLeft <= 3) {
+      statusColor = Colors.orange;
+    } else {
+      statusColor = theme.colorScheme.primary;
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor, width: 0.6),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              name,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontFamily: 'Manrope',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          Expanded(child: Text(name)),
           Text(
             "$daysLeft days",
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontFamily: 'Manrope',
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: statusColor),
           ),
         ],
       ),
