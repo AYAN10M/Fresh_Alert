@@ -125,7 +125,7 @@ class _BrandCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kBorder),
       ),
       child: Row(
@@ -135,7 +135,7 @@ class _BrandCard extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               color: _kGreen,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.eco_rounded, color: Colors.black, size: 22),
           ),
@@ -169,7 +169,7 @@ class _BrandCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: _kGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _kGreen.withValues(alpha: 0.25),
                 width: 1,
@@ -259,7 +259,7 @@ class _TileState extends State<_Tile> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: _pressed ? accent.withValues(alpha: 0.05) : _kCard,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _pressed ? accent.withValues(alpha: 0.2) : _kBorder,
             ),
@@ -271,7 +271,7 @@ class _TileState extends State<_Tile> {
                 height: 38,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(widget.icon, size: 18, color: accent),
               ),

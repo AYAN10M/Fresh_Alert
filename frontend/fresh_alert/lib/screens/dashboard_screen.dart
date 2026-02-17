@@ -9,7 +9,6 @@ const _kBg = Color(0xFF0A0A0A);
 const _kCard = Color(0xFF161616);
 const _kCardAlt = Color(0xFF1C1C1C);
 const _kGreen = Color(0xFF1DB954);
-const _kGreenLt = Color(0xFF1ED760);
 const _kRed = Color(0xFFFF453A);
 const _kOrange = Color(0xFFFF9F0A);
 const _kBorder = Color(0xFF2A2A2A);
@@ -30,6 +29,11 @@ class _MyDashboardState extends State<MyDashboard> {
     super.initState();
     _box = Hive.box('inventoryBox');
     _loadItems();
+    // Hive watch: fires instantly on any add/delete/update.
+    // No manual reload needed — dashboard always stays in sync.
+    _box.watch().listen((_) {
+      if (mounted) _loadItems();
+    });
   }
 
   void _loadItems() {
@@ -121,18 +125,21 @@ class _MyDashboardState extends State<MyDashboard> {
 
     final healthPct = total == 0 ? 1.0 : fresh / total;
 
+    // unread count — wire to real data later
+    const int unreadCount = 2;
+
     return Scaffold(
       backgroundColor: _kBg,
-      floatingActionButton: _GreenFab(onTap: _showAddOptions),
       appBar: AppBar(
         backgroundColor: _kBg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         titleSpacing: 20,
         title: Row(
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: _kGreen,
                 borderRadius: BorderRadius.circular(8),
@@ -140,30 +147,76 @@ class _MyDashboardState extends State<MyDashboard> {
               child: const Icon(
                 Icons.eco_rounded,
                 color: Colors.black,
-                size: 18,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 9),
             const Text(
               "FreshAlert",
               style: TextStyle(
                 fontFamily: 'NotoSans',
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
               ),
             ),
           ],
         ),
         actions: [
+          // ── NOTIFICATION BELL ──────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _AppBarBtn(
+              onTap: () {},
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(
+                    Icons.notifications_outlined,
+                    size: 19,
+                    color: Colors.white70,
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -3,
+                      right: -3,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _kOrange,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _kBg, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── ADD BUTTON ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: IconButton(
-              icon: const Icon(
-                Icons.notifications_outlined,
-                color: Colors.white54,
+            child: _AppBarBtn(
+              onTap: _showAddOptions,
+              filled: true,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, size: 16, color: Colors.black),
+                  SizedBox(width: 4),
+                  Text(
+                    "Add",
+                    style: TextStyle(
+                      fontFamily: 'NotoSans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
               ),
-              onPressed: () {},
             ),
           ),
         ],
@@ -174,7 +227,7 @@ class _MyDashboardState extends State<MyDashboard> {
         backgroundColor: _kCardAlt,
         onRefresh: () async => _loadItems(),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
           children: [
             // ── HERO ─────────────────────────────────────────────────────
             _HeroCard(
@@ -563,23 +616,30 @@ class _EmptyBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOM FAB
+// APP BAR BUTTON  — used for both the bell and the Add pill
 // ─────────────────────────────────────────────────────────────────────────────
-class _GreenFab extends StatefulWidget {
+class _AppBarBtn extends StatefulWidget {
+  final Widget child;
   final VoidCallback onTap;
-  const _GreenFab({required this.onTap});
+  final bool filled; // true → green pill, false → ghost border
+
+  const _AppBarBtn({
+    required this.child,
+    required this.onTap,
+    this.filled = false,
+  });
 
   @override
-  State<_GreenFab> createState() => _GreenFabState();
+  State<_AppBarBtn> createState() => _AppBarBtnState();
 }
 
-class _GreenFabState extends State<_GreenFab> {
+class _AppBarBtnState extends State<_AppBarBtn> {
   double _scale = 1.0;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.92),
+      onTapDown: (_) => setState(() => _scale = 0.88),
       onTapUp: (_) {
         setState(() => _scale = 1.0);
         widget.onTap();
@@ -587,34 +647,22 @@ class _GreenFabState extends State<_GreenFab> {
       onTapCancel: () => setState(() => _scale = 1.0),
       child: AnimatedScale(
         scale: _scale,
-        duration: const Duration(milliseconds: 120),
+        duration: const Duration(milliseconds: 110),
         curve: Curves.easeOut,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          padding: widget.filled
+              ? const EdgeInsets.symmetric(horizontal: 14, vertical: 7)
+              : const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_kGreen, _kGreenLt],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(8),
+            color: widget.filled
+                ? _kGreen
+                : Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(widget.filled ? 8 : 8),
+            border: widget.filled
+                ? null
+                : Border.all(color: _kBorder, width: 1),
           ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add_rounded, color: Colors.black, size: 20),
-              SizedBox(width: 6),
-              Text(
-                "Add Item",
-                style: TextStyle(
-                  fontFamily: 'NotoSans',
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
+          child: widget.child,
         ),
       ),
     );

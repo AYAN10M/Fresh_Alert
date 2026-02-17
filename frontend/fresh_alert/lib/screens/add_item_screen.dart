@@ -72,14 +72,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
 
     _box.add(item.toMap());
 
-    final notificationDate = _expiryDate!.subtract(const Duration(days: 1));
-    if (notificationDate.isAfter(DateTime.now())) {
-      await _notificationService.scheduleNotification(
-        id: item.id.hashCode,
-        title: "Item Expiring Soon",
-        body: "${item.name} expires tomorrow.",
-        scheduledDate: notificationDate,
-      );
+    // try/catch: in release mode the notification call can hang/throw
+    // silently and prevent Navigator.pop from ever running.
+    try {
+      final notificationDate = _expiryDate!.subtract(const Duration(days: 1));
+      if (notificationDate.isAfter(DateTime.now())) {
+        await _notificationService.scheduleNotification(
+          id: item.id.hashCode,
+          title: "Item Expiring Soon",
+          body: "${item.name} expires tomorrow.",
+          scheduledDate: notificationDate,
+        );
+      }
+    } catch (_) {
+      // Item is already saved — still pop so user isn't stuck.
     }
 
     if (!mounted) return;
@@ -189,7 +195,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: _kGreen.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: _kGreen.withValues(alpha: 0.2)),
                   ),
                   child: Row(
@@ -345,15 +351,15 @@ class _InputField extends StatelessWidget {
       fillColor: _kInput,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: _kBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: _kGreen, width: 1.5),
       ),
     ),
@@ -380,7 +386,7 @@ class _CategoryPicker extends StatelessWidget {
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
       itemCount: categories.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
       itemBuilder: (_, i) {
         final cat = categories[i];
         final sel = cat == selected;
@@ -392,7 +398,7 @@ class _CategoryPicker extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: sel ? _kGreen.withValues(alpha: 0.15) : _kInput,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: sel ? _kGreen.withValues(alpha: 0.5) : _kBorder,
               ),
@@ -432,7 +438,7 @@ class _QuantityStepper extends StatelessWidget {
     height: 48,
     decoration: BoxDecoration(
       color: _kInput,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(8),
       border: Border.all(color: _kBorder),
     ),
     child: Row(
@@ -498,7 +504,7 @@ class _StepBtnState extends State<_StepBtn> {
       height: 48,
       decoration: BoxDecoration(
         color: _pressed ? _kGreen.withValues(alpha: 0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
         widget.icon,
@@ -546,7 +552,7 @@ class _DateTapState extends State<_DateTap> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: _pressed ? widget.color.withValues(alpha: 0.08) : _kInput,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: widget.hasValue
               ? widget.color.withValues(alpha: 0.4)
@@ -606,7 +612,7 @@ class _SaveButtonState extends State<_SaveButton> {
         height: 54,
         decoration: BoxDecoration(
           color: _kGreen,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.center,
         child: const Text(

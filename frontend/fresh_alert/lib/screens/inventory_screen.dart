@@ -27,6 +27,11 @@ class _MyInventoryState extends State<MyInventory> {
     _box = Hive.box('inventoryBox');
     _searchController = TextEditingController();
     _loadPreferences();
+    // Hive watch: inventory list updates the moment anything is
+    // added or deleted — no app restart needed.
+    _box.watch().listen((_) {
+      if (mounted) _loadItems();
+    });
   }
 
   @override
@@ -133,7 +138,7 @@ class _MyInventoryState extends State<MyInventory> {
         backgroundColor: const Color(0xFF1C1C1C),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'Undo',
@@ -154,7 +159,7 @@ class _MyInventoryState extends State<MyInventory> {
       context: context,
       backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
@@ -442,7 +447,7 @@ class _InventoryCard extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: statusColor,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
           const SizedBox(width: 14),
@@ -519,7 +524,7 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              Icon(icon, size: 18, color: Colors.white),
               const SizedBox(width: 8),
               Text(
                 label,
