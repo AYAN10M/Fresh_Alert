@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fresh_alert/screens/main_screen.dart';
+import 'package:fresh_alert/services/notification_service.dart';
+
+final NotificationService _notificationService = NotificationService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('inventoryBox');
+
+  await _notificationService.init();
+
   runApp(const MyApp());
 }
 
