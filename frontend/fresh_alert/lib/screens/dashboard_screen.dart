@@ -46,7 +46,7 @@ class _MyDashboardState extends State<MyDashboard> {
       context: context,
       backgroundColor: _kCardAlt,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
@@ -61,7 +61,7 @@ class _MyDashboardState extends State<MyDashboard> {
                 margin: const EdgeInsets.only(bottom: 24),
                 decoration: BoxDecoration(
                   color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
               _AddTile(
@@ -285,7 +285,7 @@ class _HeroCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kGreen.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
@@ -312,7 +312,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: hc.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: hc.withValues(alpha: 0.35),
                     width: 1,
@@ -357,7 +357,7 @@ class _HeroCard extends StatelessWidget {
 
           // progress bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: healthPct,
               minHeight: 5,
@@ -387,7 +387,7 @@ class _Stat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kBorder),
       ),
       child: Column(
@@ -445,7 +445,7 @@ class _ExpiryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kBorder),
       ),
       child: Row(
@@ -500,7 +500,7 @@ class _ExpiryRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: _color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _color.withValues(alpha: 0.3),
                 width: 1,
@@ -532,7 +532,7 @@ class _EmptyBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28),
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kBorder),
       ),
       child: const Column(
@@ -680,10 +680,10 @@ class _AddTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(8),
       color: _kGreen.withValues(alpha: 0.07),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         onTap: onTap,
@@ -696,7 +696,7 @@ class _AddTile extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: _kGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: _kGreen, size: 20),
               ),
