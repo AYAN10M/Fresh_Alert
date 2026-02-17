@@ -15,7 +15,7 @@ class MySettings extends StatelessWidget {
         title: const Text(
           "Settings",
           style: TextStyle(
-            fontFamily: 'Manrope',
+            fontFamily: 'NotoSans',
             fontSize: 26,
             fontWeight: FontWeight.w700,
           ),
@@ -56,7 +56,7 @@ class MySettings extends StatelessWidget {
                     Text(
                       "Fresh Alert",
                       style: TextStyle(
-                        fontFamily: 'Manrope',
+                        fontFamily: 'NotoSans',
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -65,7 +65,7 @@ class MySettings extends StatelessWidget {
                     Text(
                       "Smarter kitchen management",
                       style: TextStyle(
-                        fontFamily: 'Manrope',
+                        fontFamily: 'NotoSans',
                         color: Colors.white60,
                         fontSize: 13,
                       ),
@@ -117,7 +117,7 @@ class MySettings extends StatelessWidget {
             child: Text(
               "Fresh Alert © 2026",
               style: TextStyle(
-                fontFamily: 'Manrope',
+                fontFamily: 'NotoSans',
                 color: muted,
                 fontSize: 12,
               ),
@@ -139,7 +139,7 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title.toUpperCase(),
       style: const TextStyle(
-        fontFamily: 'Manrope',
+        fontFamily: 'NotoSans',
         color: Colors.white60,
         fontSize: 12,
         letterSpacing: 1.2,
@@ -198,7 +198,7 @@ class _SettingsTile extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
+                        fontFamily: 'NotoSans',
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
                       ),
@@ -207,7 +207,7 @@ class _SettingsTile extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
+                        fontFamily: 'NotoSans',
                         color: Colors.white60,
                         fontSize: 13,
                       ),

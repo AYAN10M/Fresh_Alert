@@ -4,6 +4,16 @@ import 'package:fresh_alert/models/inventory_item.dart';
 import 'package:fresh_alert/screens/qr_scanner_screen.dart';
 import 'package:fresh_alert/screens/add_item_screen.dart';
 
+// ── colour tokens (compatible with existing dark theme) ──────────────────────
+const _kBg = Color(0xFF0A0A0A);
+const _kCard = Color(0xFF161616);
+const _kCardAlt = Color(0xFF1C1C1C);
+const _kGreen = Color(0xFF1DB954);
+const _kGreenLt = Color(0xFF1ED760);
+const _kRed = Color(0xFFFF453A);
+const _kOrange = Color(0xFFFF9F0A);
+const _kBorder = Color(0xFF2A2A2A);
+
 class MyDashboard extends StatefulWidget {
   const MyDashboard({super.key});
 
@@ -34,28 +44,37 @@ class _MyDashboardState extends State<MyDashboard> {
   void _showAddOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1C),
+      backgroundColor: _kCardAlt,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _AddOptionTile(
+              // drag handle
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _AddTile(
                 icon: Icons.qr_code_scanner_rounded,
                 label: "Scan QR Code",
+                sub: "Point camera at product label",
                 onTap: () async {
                   Navigator.pop(context);
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const QrScannerScreen()),
                   );
-
                   if (!mounted) return;
-
                   if (result != null) {
                     Navigator.push(
                       context,
@@ -66,10 +85,11 @@ class _MyDashboardState extends State<MyDashboard> {
                   }
                 },
               ),
-              const SizedBox(height: 16),
-              _AddOptionTile(
+              const SizedBox(height: 12),
+              _AddTile(
                 icon: Icons.edit_rounded,
                 label: "Add Manually",
+                sub: "Type product details by hand",
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -88,141 +108,137 @@ class _MyDashboardState extends State<MyDashboard> {
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-
-    final totalItems = _items.length;
+    final total = _items.length;
     final expired = _items.where((e) => e.expiryDate.isBefore(today)).length;
+    final fresh = _items
+        .where((e) => e.expiryDate.difference(today).inDays > 3)
+        .length;
 
     final expiringSoon = _items.where((e) {
-      final diff = e.expiryDate.difference(today).inDays;
-      return diff >= 0 && diff <= 3;
+      final d = e.expiryDate.difference(today).inDays;
+      return d >= 0 && d <= 3;
     }).toList()..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
+    final healthPct = total == 0 ? 1.0 : fresh / total;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddOptions,
-        backgroundColor: const Color(0xFF1DB954),
-        elevation: 0,
-        splashColor: Colors.transparent,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text("Add Item"),
-      ),
+      backgroundColor: _kBg,
+      floatingActionButton: _GreenFab(onTap: _showAddOptions),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: _kBg,
         elevation: 0,
-        title: const Text(
-          "FreshAlert",
-          style: TextStyle(
-            fontFamily: 'Manrope',
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: ListView(
+        titleSpacing: 20,
+        title: Row(
           children: [
-            const SizedBox(height: 24),
-
-            // HERO CARD
-            PressScale(
-              child: Container(
-                padding: const EdgeInsets.all(26),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1DB954), Color(0xFF1ED760)],
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Kitchen Health",
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      expiringSoon.isEmpty
-                          ? "All items are fresh 🎉"
-                          : "${expiringSoon.length} items need attention",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Manrope',
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: _kGreen,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.eco_rounded,
+                color: Colors.black,
+                size: 18,
               ),
             ),
-
-            const SizedBox(height: 36),
-
+            const SizedBox(width: 10),
             const Text(
-              "Overview",
+              "FreshAlert",
               style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontFamily: 'NotoSans',
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
             ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_outlined,
+                color: Colors.white54,
+              ),
+              onPressed: () {},
+            ),
+          ),
+        ],
+      ),
 
-            const SizedBox(height: 20),
+      body: RefreshIndicator(
+        color: _kGreen,
+        backgroundColor: _kCardAlt,
+        onRefresh: () async => _loadItems(),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+          children: [
+            // ── HERO ─────────────────────────────────────────────────────
+            _HeroCard(
+              expiringSoonCount: expiringSoon.length,
+              healthPct: healthPct,
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── STATS ROW ─────────────────────────────────────────────────
+            const _Label("Overview"),
+            const SizedBox(height: 14),
 
             Row(
               children: [
                 Expanded(
-                  child: PressScale(
-                    child: _StatCard(
-                      title: "Total",
-                      value: totalItems,
-                      color: const Color(0xFF1DB954),
-                    ),
+                  child: _Stat(
+                    label: "Total",
+                    value: total,
+                    color: Colors.white70,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: PressScale(
-                    child: _StatCard(
-                      title: "Expired",
-                      value: expired,
-                      color: Colors.redAccent,
-                    ),
+                  child: _Stat(
+                    label: "Expiring",
+                    value: expiringSoon.length,
+                    color: _kOrange,
                   ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _Stat(label: "Expired", value: expired, color: _kRed),
                 ),
               ],
             ),
 
-            const SizedBox(height: 36),
+            const SizedBox(height: 28),
 
-            const Text(
-              "Expiring Soon",
-              style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            // ── EXPIRING SOON ─────────────────────────────────────────────
+            Row(
+              children: [
+                const Expanded(child: _Label("Expiring Soon")),
+                if (expiringSoon.isNotEmpty)
+                  Text(
+                    "${expiringSoon.length} item${expiringSoon.length == 1 ? '' : 's'}",
+                    style: const TextStyle(
+                      fontFamily: 'NotoSans',
+                      fontSize: 13,
+                      color: Colors.white38,
+                    ),
+                  ),
+              ],
             ),
-
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             if (expiringSoon.isEmpty)
-              const Text(
-                "No items expiring soon",
-                style: TextStyle(fontFamily: 'Manrope', color: Colors.white54),
-              )
+              _EmptyBanner()
             else
-              ...expiringSoon.take(3).toList().asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final daysLeft = item.expiryDate.difference(today).inDays;
-
-                return SlideFadeIn(
-                  delay: index * 100,
-                  child: _ExpiryItemCard(name: item.name, daysLeft: daysLeft),
+              ...expiringSoon.take(5).toList().asMap().entries.map((e) {
+                final days = e.value.expiryDate.difference(today).inDays;
+                return _SlideFade(
+                  delay: e.key * 80,
+                  child: _ExpiryRow(item: e.value, daysLeft: days),
                 );
               }),
           ],
@@ -232,102 +248,171 @@ class _MyDashboardState extends State<MyDashboard> {
   }
 }
 
-/* ------------------ Animated Widgets ------------------ */
+// ─────────────────────────────────────────────────────────────────────────────
+// HERO CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _HeroCard extends StatelessWidget {
+  final int expiringSoonCount;
+  final double healthPct;
 
-class PressScale extends StatefulWidget {
-  final Widget child;
-  const PressScale({super.key, required this.child});
+  const _HeroCard({required this.expiringSoonCount, required this.healthPct});
 
-  @override
-  State<PressScale> createState() => _PressScaleState();
-}
+  String get _headline => expiringSoonCount == 0
+      ? "All items are fresh 🎉"
+      : expiringSoonCount == 1
+      ? "1 item needs attention"
+      : "$expiringSoonCount items need attention";
 
-class _PressScaleState extends State<PressScale> {
-  double _scale = 1;
+  String get _sub => expiringSoonCount == 0
+      ? "Your kitchen is in great shape."
+      : "Check the expiring items below.";
+
+  Color _hColor(double p) {
+    if (p > 0.6) return _kGreen;
+    if (p > 0.3) return _kOrange;
+    return _kRed;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.96),
-      onTapUp: (_) => setState(() => _scale = 1),
-      onTapCancel: () => setState(() => _scale = 1),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        child: widget.child,
+    final hc = _hColor(healthPct);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A3D2B), Color(0xFF0D2318)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _kGreen.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                "KITCHEN HEALTH",
+                style: TextStyle(
+                  fontFamily: 'NotoSans',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                  color: Colors.white38,
+                ),
+              ),
+              const Spacer(),
+              // health pill
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: hc.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: hc.withValues(alpha: 0.35),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  "${(healthPct * 100).round()}% Fresh",
+                  style: TextStyle(
+                    fontFamily: 'NotoSans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: hc,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            _headline,
+            style: const TextStyle(
+              fontFamily: 'NotoSans',
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _sub,
+            style: const TextStyle(
+              fontFamily: 'NotoSans',
+              fontSize: 13,
+              color: Colors.white54,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: healthPct,
+              minHeight: 5,
+              backgroundColor: Colors.white10,
+              valueColor: AlwaysStoppedAnimation<Color>(hc),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class SlideFadeIn extends StatelessWidget {
-  final Widget child;
-  final int delay;
-
-  const SlideFadeIn({super.key, required this.child, this.delay = 0});
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 400 + delay),
-      curve: Curves.easeOut,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: child,
-    );
-  }
-}
-
-/* ------------------ UI Components ------------------ */
-
-class _StatCard extends StatelessWidget {
-  final String title;
+// ─────────────────────────────────────────────────────────────────────────────
+// STAT CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _Stat extends StatelessWidget {
+  final String label;
   final int value;
   final Color color;
 
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.color,
-  });
+  const _Stat({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(24),
+        color: _kCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kBorder),
       ),
       child: Column(
         children: [
           TweenAnimationBuilder<int>(
             tween: IntTween(begin: 0, end: value),
-            duration: const Duration(milliseconds: 800),
-            builder: (context, val, _) => Text(
-              "$val",
+            duration: const Duration(milliseconds: 700),
+            builder: (_, v, _) => Text(
+              "$v",
               style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+                fontFamily: 'NotoSans',
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
-            title,
+            label,
             style: const TextStyle(
-              fontFamily: 'Manrope',
-              color: Colors.white70,
+              fontFamily: 'NotoSans',
+              fontSize: 12,
+              color: Colors.white38,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -336,47 +421,99 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ExpiryItemCard extends StatelessWidget {
-  final String name;
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPIRY ROW
+// ─────────────────────────────────────────────────────────────────────────────
+class _ExpiryRow extends StatelessWidget {
+  final InventoryItem item;
   final int daysLeft;
 
-  const _ExpiryItemCard({required this.name, required this.daysLeft});
+  const _ExpiryRow({required this.item, required this.daysLeft});
+
+  Color get _color => daysLeft == 0 ? _kRed : _kOrange;
+
+  String get _badge {
+    if (daysLeft == 0) return "Today";
+    if (daysLeft == 1) return "Tomorrow";
+    return "$daysLeft days";
+  }
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    if (daysLeft < 0) {
-      statusColor = Colors.redAccent;
-    } else if (daysLeft <= 3) {
-      statusColor = Colors.orangeAccent;
-    } else {
-      statusColor = const Color(0xFF1DB954);
-    }
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(18),
+        color: _kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontFamily: 'Manrope',
-                fontWeight: FontWeight.w600,
-              ),
+          // glowing dot
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: 14),
+            decoration: BoxDecoration(
+              color: _color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _color.withValues(alpha: 0.5),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
           ),
-          Text(
-            "$daysLeft days",
-            style: TextStyle(
-              fontFamily: 'Manrope',
-              fontWeight: FontWeight.bold,
-              color: statusColor,
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontFamily: 'NotoSans',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                if (item.category != null && item.category!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.category!,
+                    style: const TextStyle(
+                      fontFamily: 'NotoSans',
+                      fontSize: 12,
+                      color: Colors.white38,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _color.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              _badge,
+              style: TextStyle(
+                fontFamily: 'NotoSans',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _color,
+              ),
             ),
           ),
         ],
@@ -385,34 +522,207 @@ class _ExpiryItemCard extends StatelessWidget {
   }
 }
 
-class _AddOptionTile extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPTY BANNER
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmptyBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.check_circle_outline_rounded, color: _kGreen, size: 36),
+          SizedBox(height: 10),
+          Text(
+            "Nothing expiring soon",
+            style: TextStyle(
+              fontFamily: 'NotoSans',
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            "You're all good for now 🎉",
+            style: TextStyle(
+              fontFamily: 'NotoSans',
+              fontSize: 13,
+              color: Colors.white38,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOM FAB
+// ─────────────────────────────────────────────────────────────────────────────
+class _GreenFab extends StatefulWidget {
+  final VoidCallback onTap;
+  const _GreenFab({required this.onTap});
+
+  @override
+  State<_GreenFab> createState() => _GreenFabState();
+}
+
+class _GreenFabState extends State<_GreenFab> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.92),
+      onTapUp: (_) {
+        setState(() => _scale = 1.0);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_kGreen, _kGreenLt],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, color: Colors.black, size: 20),
+              SizedBox(width: 6),
+              Text(
+                "Add Item",
+                style: TextStyle(
+                  fontFamily: 'NotoSans',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION LABEL
+// ─────────────────────────────────────────────────────────────────────────────
+class _Label extends StatelessWidget {
+  final String text;
+  const _Label(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      fontFamily: 'NotoSans',
+      fontSize: 17,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SLIDE + FADE ANIMATION
+// ─────────────────────────────────────────────────────────────────────────────
+class _SlideFade extends StatelessWidget {
+  final Widget child;
+  final int delay;
+  const _SlideFade({required this.child, this.delay = 0});
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: 1),
+    duration: Duration(milliseconds: 380 + delay),
+    curve: Curves.easeOut,
+    builder: (_, v, child) => Opacity(
+      opacity: v,
+      child: Transform.translate(offset: Offset(0, 14 * (1 - v)), child: child),
+    ),
+    child: child,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADD TILE  (bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+class _AddTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String sub;
   final VoidCallback onTap;
 
-  const _AddOptionTile({
+  const _AddTile({
     required this.icon,
     required this.label,
+    required this.sub,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      borderRadius: BorderRadius.circular(22),
-      color: const Color(0xFF1DB954).withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+      color: _kGreen.withValues(alpha: 0.07),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF1DB954)),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _kGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: _kGreen, size: 20),
+              ),
               const SizedBox(width: 16),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontFamily: 'NotoSans',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: const TextStyle(
+                      fontFamily: 'NotoSans',
+                      fontSize: 12,
+                      color: Colors.white38,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

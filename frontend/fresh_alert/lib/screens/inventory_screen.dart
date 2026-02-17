@@ -37,10 +37,8 @@ class _MyInventoryState extends State<MyInventory> {
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-
     _currentSort = SortOption.values[prefs.getInt("sortOption") ?? 0];
     _groupByCategory = prefs.getBool("groupByCategory") ?? false;
-
     _loadItems();
   }
 
@@ -65,7 +63,6 @@ class _MyInventoryState extends State<MyInventory> {
     }
 
     _applySorting(items);
-
     setState(() => _items = items);
   }
 
@@ -99,6 +96,57 @@ class _MyInventoryState extends State<MyInventory> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────
+  // DELETE: find the item's key inside Hive and erase it
+  // ─────────────────────────────────────────────────────────
+  void _deleteItem(InventoryItem target) {
+    // Walk every Hive entry to find the matching id
+    dynamic targetKey;
+    for (final entry in _box.toMap().entries) {
+      final map = Map<String, dynamic>.from(entry.value);
+      final item = InventoryItem.fromMap(map);
+      if (item.id == target.id) {
+        targetKey = entry.key;
+        break;
+      }
+    }
+
+    if (targetKey != null) {
+      _box.delete(targetKey);
+      _loadItems(); // refresh list
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Undo snackbar – shown after every swipe delete
+  // ─────────────────────────────────────────────────────────
+  void _showUndoSnackbar(InventoryItem deleted) {
+    final map = deleted.toMap(); // snapshot before delete
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${deleted.name} removed',
+          style: const TextStyle(color: Colors.white, fontFamily: 'NotoSans'),
+        ),
+        backgroundColor: const Color(0xFF1C1C1C),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: const Color(0xFF38B000),
+          onPressed: () {
+            _box.add(map); // re-add the exact same data
+            _loadItems();
+          },
+        ),
+      ),
+    );
+  }
+
   void _showSortOptions() {
     final theme = Theme.of(context);
 
@@ -115,7 +163,6 @@ class _MyInventoryState extends State<MyInventory> {
             mainAxisSize: MainAxisSize.min,
             children: SortOption.values.map((option) {
               final selected = _currentSort == option;
-
               return ListTile(
                 title: Text(_sortLabel(option)),
                 trailing: selected
@@ -144,7 +191,7 @@ class _MyInventoryState extends State<MyInventory> {
         title: const Text(
           "Inventory",
           style: TextStyle(
-            fontFamily: 'Manrope',
+            fontFamily: 'NotoSans',
             fontSize: 26,
             fontWeight: FontWeight.bold,
           ),
@@ -156,13 +203,13 @@ class _MyInventoryState extends State<MyInventory> {
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             child: Column(
               children: [
-                // SEARCH
+                // ── SEARCH ──────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   height: 52,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
@@ -178,7 +225,7 @@ class _MyInventoryState extends State<MyInventory> {
                           decoration: const InputDecoration(
                             hintText: "Search groceries...",
                             hintStyle: TextStyle(
-                              fontFamily: 'Manrope',
+                              fontFamily: 'NotoSans',
                               color: Colors.white60,
                             ),
                             border: InputBorder.none,
@@ -191,7 +238,7 @@ class _MyInventoryState extends State<MyInventory> {
 
                 const SizedBox(height: 18),
 
-                // GROUP & SORT
+                // ── GROUP & SORT ─────────────────────────────────
                 Row(
                   children: [
                     Expanded(
@@ -243,18 +290,29 @@ class _MyInventoryState extends State<MyInventory> {
     );
   }
 
+  // ── LIST BUILDERS ──────────────────────────────────────────────────────────
+
   Widget _buildNormalList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: _items.length,
-      itemBuilder: (_, index) => _InventoryCard(item: _items[index]),
+      itemBuilder: (_, index) {
+        final item = _items[index];
+        return _SwipableCard(
+          item: item,
+          onDelete: () {
+            _showUndoSnackbar(item);
+            _deleteItem(item);
+          },
+        );
+      },
     );
   }
 
   Widget _buildGroupedList() {
     final Map<String, List<InventoryItem>> grouped = {};
 
-    for (var item in _items) {
+    for (final item in _items) {
       final category = item.category ?? "Uncategorized";
       grouped.putIfAbsent(category, () => []);
       grouped[category]!.add(item);
@@ -270,13 +328,21 @@ class _MyInventoryState extends State<MyInventory> {
             Text(
               entry.key,
               style: const TextStyle(
-                fontFamily: 'Manrope',
+                fontFamily: 'NotoSans',
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
-            ...entry.value.map((item) => _InventoryCard(item: item)),
+            ...entry.value.map(
+              (item) => _SwipableCard(
+                item: item,
+                onDelete: () {
+                  _showUndoSnackbar(item);
+                  _deleteItem(item);
+                },
+              ),
+            ),
           ],
         );
       }).toList(),
@@ -284,53 +350,64 @@ class _MyInventoryState extends State<MyInventory> {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
+// ─────────────────────────────────────────────────────────────────────────────
+// SWIPABLE CARD  ←  replaces the old _InventoryCard
+// Swipe left  → red delete background appears → item removed
+// ─────────────────────────────────────────────────────────────────────────────
+class _SwipableCard extends StatelessWidget {
+  final InventoryItem item;
+  final VoidCallback onDelete;
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.active,
-  });
+  const _SwipableCard({required this.item, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Dismissible(
+      // Each card needs a unique key so Flutter can track it
+      key: ValueKey(item.id),
 
-    return Material(
-      borderRadius: BorderRadius.circular(24),
-      color: active
-          ? theme.colorScheme.primary.withValues(alpha: 0.15)
-          : theme.colorScheme.primary.withValues(alpha: 0.08),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontWeight: FontWeight.w600,
-                ),
+      // Only allow swiping from right to left
+      direction: DismissDirection.endToStart,
+
+      // Called when the swipe animation completes
+      onDismissed: (_) => onDelete(),
+
+      // Red background revealed while swiping
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 26),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'NotoSans',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+
+      // The visible card (same design as before, just wrapped)
+      child: _InventoryCard(item: item),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CARD UI  –  unchanged visual design
+// ─────────────────────────────────────────────────────────────────────────────
 class _InventoryCard extends StatelessWidget {
   final InventoryItem item;
 
@@ -355,10 +432,11 @@ class _InventoryCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
+          // Coloured status bar on the left
           Container(
             width: 6,
             height: 42,
@@ -368,14 +446,16 @@ class _InventoryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
+
+          // Name + quantity
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.name,
-                  style: TextStyle(
-                    fontFamily: 'Manrope',
+                  style: const TextStyle(
+                    fontFamily: 'NotoSans',
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -390,11 +470,67 @@ class _InventoryCard extends StatelessWidget {
               ],
             ),
           ),
+
+          // Days remaining
           Text(
-            "$daysLeft d",
-            style: TextStyle(fontWeight: FontWeight.bold, color: statusColor),
+            daysLeft < 0 ? "Expired" : "$daysLeft d",
+            style: TextStyle(
+              fontFamily: 'NotoSans',
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTION BUTTON  –  unchanged
+// ─────────────────────────────────────────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      borderRadius: BorderRadius.circular(8),
+      color: active
+          ? theme.colorScheme.primary.withValues(alpha: 0)
+          : theme.colorScheme.primary.withValues(alpha: 0.5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'NotoSans',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -88,6 +88,10 @@ flutter:
       fonts:
         - asset: lib/assets/fonts/Manrope.ttf
 
+    - family: NotoSans
+      fonts:
+        - asset: lib/assets/fonts/NotoSans.ttf
+
   #   - family: Trajan Pro
   #     fonts:
   #       - asset: fonts/TrajanPro.ttf
