@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fresh_alert/models/inventory_item.dart';
+import 'package:fresh_alert/theme/app_colors.dart';
 
 enum SortOption { expiryNearest, expiryFarthest, recentlyAdded, quantity }
 
@@ -63,7 +65,11 @@ class _MyInventoryState extends State<MyInventory> {
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       items = items
-          .where((item) => item.name.toLowerCase().contains(query))
+          .where(
+            (item) =>
+                item.name.toLowerCase().contains(query) ||
+                (item.category?.toLowerCase().contains(query) ?? false),
+          )
           .toList();
     }
 
@@ -123,26 +129,129 @@ class _MyInventoryState extends State<MyInventory> {
   }
 
   // ─────────────────────────────────────────────────────────
+  // EDIT QUANTITY: in-place update inside Hive
+  // ─────────────────────────────────────────────────────────
+  void _showEditQuantityDialog(InventoryItem target) {
+    final qtyController = TextEditingController(
+      text: target.quantity.toString(),
+    );
+    final c = AppColors.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          target.name,
+          style: TextStyle(
+            fontFamily: 'NotoSans',
+            fontWeight: FontWeight.w700,
+            color: c.onSurface,
+            fontSize: 16,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Update quantity',
+                style: TextStyle(
+                  fontFamily: 'NotoSans',
+                  fontSize: 13,
+                  color: c.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: qtyController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: TextStyle(
+                fontFamily: 'NotoSans',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: c.onSurface,
+              ),
+              cursorColor: c.primary,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: c.surfaceContainerLow,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                fontFamily: 'NotoSans',
+                color: c.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final newQty =
+                  int.tryParse(qtyController.text) ?? target.quantity;
+              if (newQty > 0 && newQty != target.quantity) {
+                // Find the Hive key and update
+                for (final entry in _box.toMap().entries) {
+                  final map = Map<String, dynamic>.from(entry.value);
+                  final item = InventoryItem.fromMap(map);
+                  if (item.id == target.id) {
+                    final updated = target.copyWith(quantity: newQty);
+                    _box.put(entry.key, updated.toMap());
+                    break;
+                  }
+                }
+                _loadItems();
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              'Save',
+              style: TextStyle(
+                fontFamily: 'NotoSans',
+                fontWeight: FontWeight.w700,
+                color: c.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
   // Undo snackbar – shown after every swipe delete
   // ─────────────────────────────────────────────────────────
   void _showUndoSnackbar(InventoryItem deleted) {
     final map = deleted.toMap(); // snapshot before delete
+    final c = AppColors.of(context);
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           '${deleted.name} removed',
-          style: const TextStyle(color: Colors.white, fontFamily: 'NotoSans'),
+          style: TextStyle(color: c.snackbarText, fontFamily: 'NotoSans'),
         ),
-        backgroundColor: const Color(0xFF1C1C1C),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'Undo',
-          textColor: const Color(0xFF38B000),
+          textColor: c.primary,
           onPressed: () {
             _box.add(map); // re-add the exact same data
             _loadItems();
@@ -157,10 +266,6 @@ class _MyInventoryState extends State<MyInventory> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-      ),
       builder: (_) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -189,16 +294,18 @@ class _MyInventoryState extends State<MyInventory> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 360;
+    final c = AppColors.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Inventory",
           style: TextStyle(
             fontFamily: 'NotoSans',
             fontSize: 26,
             fontWeight: FontWeight.bold,
+            color: c.onSurface,
           ),
         ),
       ),
@@ -213,27 +320,32 @@ class _MyInventoryState extends State<MyInventory> {
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   height: 52,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
+                    color: c.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.search_rounded,
-                        color: theme.colorScheme.primary,
-                      ),
+                      Icon(Icons.search_rounded, color: c.primary),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
                           onChanged: (_) => _loadItems(),
-                          decoration: const InputDecoration(
+                          style: TextStyle(
+                            fontFamily: 'NotoSans',
+                            color: c.onSurface,
+                          ),
+                          decoration: InputDecoration(
                             hintText: "Search groceries...",
                             hintStyle: TextStyle(
                               fontFamily: 'NotoSans',
-                              color: Colors.white60,
+                              color: c.onSurfaceVariant,
                             ),
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),
@@ -244,10 +356,10 @@ class _MyInventoryState extends State<MyInventory> {
                 const SizedBox(height: 18),
 
                 // ── GROUP & SORT ─────────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ActionButton(
+                if (isCompact)
+                  Column(
+                    children: [
+                      _ActionButton(
                         icon: Icons.category_rounded,
                         label: _groupByCategory ? "Grouped" : "Group By",
                         active: _groupByCategory,
@@ -256,18 +368,42 @@ class _MyInventoryState extends State<MyInventory> {
                           _savePreferences();
                         },
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _ActionButton(
+                      const SizedBox(height: 12),
+                      _ActionButton(
                         icon: Icons.swap_vert_rounded,
                         label: "Sort",
                         active: false,
                         onTap: _showSortOptions,
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.category_rounded,
+                          label: _groupByCategory ? "Grouped" : "Group By",
+                          active: _groupByCategory,
+                          onTap: () {
+                            setState(
+                              () => _groupByCategory = !_groupByCategory,
+                            );
+                            _savePreferences();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.swap_vert_rounded,
+                          label: "Sort",
+                          active: false,
+                          onTap: _showSortOptions,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -277,12 +413,45 @@ class _MyInventoryState extends State<MyInventory> {
           Expanded(
             child: _items.isEmpty
                 ? Center(
-                    child: Text(
-                      "Your kitchen is empty 🛒",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: c.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: c.outlineVariant.withValues(alpha: 0.45),
                         ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.shopping_cart_outlined,
+                            color: c.primary,
+                            size: 36,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Your kitchen is empty',
+                            style: TextStyle(
+                              fontFamily: 'NotoSans',
+                              fontWeight: FontWeight.w600,
+                              color: c.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Add items from the dashboard ➕',
+                            style: TextStyle(
+                              fontFamily: 'NotoSans',
+                              fontSize: 13,
+                              color: c.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
                   )
@@ -309,6 +478,7 @@ class _MyInventoryState extends State<MyInventory> {
             _showUndoSnackbar(item);
             _deleteItem(item);
           },
+          onTap: () => _showEditQuantityDialog(item),
         );
       },
     );
@@ -332,10 +502,11 @@ class _MyInventoryState extends State<MyInventory> {
             const SizedBox(height: 18),
             Text(
               entry.key,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'NotoSans',
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
+                color: AppColors.of(context).onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -346,6 +517,7 @@ class _MyInventoryState extends State<MyInventory> {
                   _showUndoSnackbar(item);
                   _deleteItem(item);
                 },
+                onTap: () => _showEditQuantityDialog(item),
               ),
             ),
           ],
@@ -362,8 +534,9 @@ class _MyInventoryState extends State<MyInventory> {
 class _SwipableCard extends StatelessWidget {
   final InventoryItem item;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
-  const _SwipableCard({required this.item, required this.onDelete});
+  const _SwipableCard({required this.item, required this.onDelete, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -381,7 +554,7 @@ class _SwipableCard extends StatelessWidget {
       background: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.redAccent,
+          color: StatusColors.red,
           borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.centerRight,
@@ -405,13 +578,16 @@ class _SwipableCard extends StatelessWidget {
       ),
 
       // The visible card (same design as before, just wrapped)
-      child: _InventoryCard(item: item),
+      child: GestureDetector(
+        onTap: onTap,
+        child: _InventoryCard(item: item),
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CARD UI  –  unchanged visual design
+// CARD UI  –  theme-aware
 // ─────────────────────────────────────────────────────────────────────────────
 class _InventoryCard extends StatelessWidget {
   final InventoryItem item;
@@ -420,69 +596,143 @@ class _InventoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = AppColors.of(context);
     final daysLeft = item.expiryDate.difference(DateTime.now()).inDays;
 
     Color statusColor;
     if (daysLeft < 0) {
-      statusColor = Colors.redAccent;
+      statusColor = StatusColors.red;
     } else if (daysLeft <= 3) {
-      statusColor = Colors.orangeAccent;
+      statusColor = StatusColors.orange;
     } else {
-      statusColor = theme.colorScheme.primary;
+      statusColor = c.primary;
     }
+
+    final bool hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
+    final bool isLocal = hasImage && !item.imageUrl!.startsWith('http');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: c.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: c.outlineVariant.withValues(alpha: 0.45),
+        ),
       ),
       child: Row(
         children: [
-          // Coloured status bar on the left
-          Container(
-            width: 6,
-            height: 42,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(8),
+          // Product image or status bar
+          if (hasImage)
+            Container(
+              width: 44,
+              height: 44,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: c.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: isLocal
+                    ? Image.file(
+                        File(item.imageUrl!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, e, s) => Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 18,
+                          color: c.onSurfaceVariant,
+                        ),
+                      )
+                    : Image.network(
+                        item.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, e, s) => Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 18,
+                          color: c.onSurfaceVariant,
+                        ),
+                      ),
+              ),
+            )
+          else
+            Container(
+              width: 6,
+              height: 42,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: statusColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
 
-          // Name + quantity
+          // Name + meta
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'NotoSans',
                     fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    fontSize: 15,
+                    color: c.onSurface,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Qty: ${item.quantity}",
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      "Qty: ${item.quantity}",
+                      style: TextStyle(
+                        fontFamily: 'NotoSans',
+                        fontSize: 12,
+                        color: c.onSurfaceVariant,
+                      ),
+                    ),
+                    if (item.location != null && item.location!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.place_outlined,
+                        size: 12,
+                        color: c.onSurface.withValues(alpha: 0.35),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        item.location!,
+                        style: TextStyle(
+                          fontFamily: 'NotoSans',
+                          fontSize: 12,
+                          color: c.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
 
           // Days remaining
-          Text(
-            daysLeft < 0 ? "Expired" : "$daysLeft d",
-            style: TextStyle(
-              fontFamily: 'NotoSans',
-              fontWeight: FontWeight.bold,
-              color: statusColor,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              daysLeft < 0 ? "Expired" : "${daysLeft}d",
+              style: TextStyle(
+                fontFamily: 'NotoSans',
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: statusColor,
+              ),
             ),
           ),
         ],
@@ -492,7 +742,7 @@ class _InventoryCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ACTION BUTTON  –  unchanged
+// ACTION BUTTON  –  theme-aware
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActionButton extends StatelessWidget {
   final IconData icon;
@@ -509,13 +759,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = AppColors.of(context);
 
     return Material(
       borderRadius: BorderRadius.circular(8),
       color: active
-          ? theme.colorScheme.primary.withValues(alpha: 0)
-          : theme.colorScheme.primary.withValues(alpha: 0.5),
+          ? c.surfaceContainerHigh
+          : c.primary.withValues(alpha: 0.12),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
@@ -524,14 +774,21 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: Colors.white),
+              Icon(
+                icon,
+                size: 18,
+                color: active ? c.onSurface : c.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'NotoSans',
                   fontWeight: FontWeight.w600,
+                  color: active ? c.onSurface : c.primary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

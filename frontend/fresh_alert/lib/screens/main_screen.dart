@@ -3,11 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:fresh_alert/screens/dashboard_screen.dart';
 import 'package:fresh_alert/screens/inventory_screen.dart';
 import 'package:fresh_alert/screens/settings_screen.dart';
-
-const _kGreen = Color(0xFF1DB954);
-const _kBg = Color(0xFF0A0A0A);
-const _kNavBg = Color(0xFF141414);
-const _kBorder = Color(0xFF242424);
+import 'package:fresh_alert/theme/app_colors.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -28,34 +24,31 @@ class _MainScreenState extends State<MainScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  ThemeData _buildTheme() => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
-      primary: _kGreen,
-      surface: Color(0xFF181818),
-    ),
-    scaffoldBackgroundColor: _kBg,
-    splashFactory: NoSplash.splashFactory,
-    highlightColor: Colors.transparent,
-    hoverColor: Colors.transparent,
-  );
-
   @override
   Widget build(BuildContext context) {
-    final theme = _buildTheme();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final c = AppColors.of(context);
 
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        body: SafeArea(
-          top: false,
-          child: IndexedStack(index: _selectedIndex, children: _pages),
-        ),
-        bottomNavigationBar: _BottomNav(
-          selectedIndex: _selectedIndex,
-          onTap: _onTap,
-        ),
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        top: false,
+        child: IndexedStack(index: _selectedIndex, children: _pages),
+      ),
+      bottomNavigationBar: _BottomNav(
+        selectedIndex: _selectedIndex,
+        onTap: _onTap,
+        surfaceColor: c.surfaceContainerHigh,
+        borderColor: c.outlineVariant,
+        selectedColor: c.primary,
+        unselectedColor: c.onSurfaceVariant,
+        shadowColor: isDark
+            ? Colors.black.withValues(alpha: 0.6)
+            : Colors.black.withValues(alpha: 0.08),
+        backgroundGlow: isDark
+            ? c.primary
+            : c.primary.withValues(alpha: 0.06),
       ),
     );
   }
@@ -67,8 +60,23 @@ class _MainScreenState extends State<MainScreen> {
 class _BottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final Color surfaceColor;
+  final Color borderColor;
+  final Color selectedColor;
+  final Color unselectedColor;
+  final Color shadowColor;
+  final Color backgroundGlow;
 
-  const _BottomNav({required this.selectedIndex, required this.onTap});
+  const _BottomNav({
+    required this.selectedIndex,
+    required this.onTap,
+    required this.surfaceColor,
+    required this.borderColor,
+    required this.selectedColor,
+    required this.unselectedColor,
+    required this.shadowColor,
+    required this.backgroundGlow,
+  });
 
   static const _items = [
     _NavItem(icon: Icons.dashboard_rounded, label: "Dashboard"),
@@ -84,18 +92,18 @@ class _BottomNav extends StatelessWidget {
         child: Container(
           height: 68,
           decoration: BoxDecoration(
-            color: _kNavBg,
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _kBorder, width: 1),
+            border: Border.all(color: borderColor, width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: shadowColor,
                 blurRadius: 40,
                 offset: const Offset(0, 12),
               ),
               // subtle green ambient glow when something is selected
               BoxShadow(
-                color: _kGreen.withValues(alpha: 0.04),
+                color: backgroundGlow.withValues(alpha: 0.04),
                 blurRadius: 30,
                 spreadRadius: 2,
               ),
@@ -107,6 +115,8 @@ class _BottomNav extends StatelessWidget {
                 child: _NavButton(
                   item: _items[i],
                   isSelected: selectedIndex == i,
+                  selectedColor: selectedColor,
+                  unselectedColor: unselectedColor,
                   onTap: () => onTap(i),
                 ),
               );
@@ -124,11 +134,15 @@ class _BottomNav extends StatelessWidget {
 class _NavButton extends StatefulWidget {
   final _NavItem item;
   final bool isSelected;
+  final Color selectedColor;
+  final Color unselectedColor;
   final VoidCallback onTap;
 
   const _NavButton({
     required this.item,
     required this.isSelected,
+    required this.selectedColor,
+    required this.unselectedColor,
     required this.onTap,
   });
 
@@ -190,7 +204,7 @@ class _NavButtonState extends State<_NavButton>
           decoration: BoxDecoration(
             // selected tab gets a pill highlight
             color: selected
-                ? _kGreen.withValues(alpha: 0.12)
+                ? widget.selectedColor.withValues(alpha: 0.12)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -205,7 +219,9 @@ class _NavButtonState extends State<_NavButton>
                 child: Icon(
                   widget.item.icon,
                   size: 22,
-                  color: selected ? _kGreen : Colors.white38,
+                  color: selected
+                      ? widget.selectedColor
+                      : widget.unselectedColor,
                 ),
               ),
               const SizedBox(height: 4),
@@ -215,7 +231,9 @@ class _NavButtonState extends State<_NavButton>
                   fontFamily: 'NotoSans',
                   fontSize: 10,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w900,
-                  color: selected ? _kGreen : Colors.white38,
+                  color: selected
+                      ? widget.selectedColor
+                      : widget.unselectedColor,
                 ),
                 child: Text(widget.item.label),
               ),

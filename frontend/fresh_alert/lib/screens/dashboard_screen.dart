@@ -1,17 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:fresh_alert/models/inventory_item.dart';
 import 'package:fresh_alert/screens/qr_scanner_screen.dart';
 import 'package:fresh_alert/screens/add_item_screen.dart';
-
-// ── colour tokens (compatible with existing dark theme) ──────────────────────
-const _kBg = Color(0xFF0A0A0A);
-const _kCard = Color(0xFF161616);
-const _kCardAlt = Color(0xFF1C1C1C);
-const _kGreen = Color(0xFF1DB954);
-const _kRed = Color(0xFFFF453A);
-const _kOrange = Color(0xFFFF9F0A);
-const _kBorder = Color(0xFF2A2A2A);
+import 'package:fresh_alert/theme/app_colors.dart';
 
 class MyDashboard extends StatefulWidget {
   const MyDashboard({super.key});
@@ -46,12 +39,10 @@ class _MyDashboardState extends State<MyDashboard> {
   }
 
   void _showAddOptions() {
+    final c = AppColors.of(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: _kCardAlt,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-      ),
       builder: (_) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
@@ -64,14 +55,14 @@ class _MyDashboardState extends State<MyDashboard> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 24),
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: c.dragHandle,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               _AddTile(
                 icon: Icons.qr_code_scanner_rounded,
-                label: "Scan QR Code",
-                sub: "Point camera at product label",
+                label: "Scan Barcode",
+                sub: "Point camera at product barcode or QR code",
                 onTap: () async {
                   Navigator.pop(context);
                   final result = await Navigator.push(
@@ -117,64 +108,60 @@ class _MyDashboardState extends State<MyDashboard> {
     final fresh = _items
         .where((e) => e.expiryDate.difference(today).inDays > 3)
         .length;
-
     final expiringSoon = _items.where((e) {
       final d = e.expiryDate.difference(today).inDays;
       return d >= 0 && d <= 3;
     }).toList()..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
     final healthPct = total == 0 ? 1.0 : fresh / total;
+    final isCompact = MediaQuery.sizeOf(context).width < 360;
+    final theme = Theme.of(context);
+    final c = AppColors.of(context);
 
-    // unread count — wire to real data later
-    const int unreadCount = 2;
+    final unreadCount = expiringSoon.length;
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: _kBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
         titleSpacing: 20,
         title: Row(
           children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: _kGreen,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.eco_rounded,
-                color: Colors.black,
-                size: 16,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'lib/assets/App Icon/icon.png',
+                width: 28,
+                height: 28,
               ),
             ),
             const SizedBox(width: 9),
-            const Text(
+            Text(
               "FreshAlert",
               style: TextStyle(
                 fontFamily: 'NotoSans',
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.4,
+                color: c.onSurface,
               ),
             ),
           ],
         ),
         actions: [
-          // ── NOTIFICATION BELL ──────────────────────────
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _AppBarBtn(
-              onTap: () {},
+              onTap: () => _showNotifications(context, expiringSoon),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.notifications_outlined,
                     size: 19,
-                    color: Colors.white70,
+                    color: c.onSurfaceVariant,
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -184,9 +171,9 @@ class _MyDashboardState extends State<MyDashboard> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: _kOrange,
+                          color: StatusColors.orange,
                           shape: BoxShape.circle,
-                          border: Border.all(color: _kBg, width: 1.5),
+                          border: Border.all(color: c.surface, width: 1.5),
                         ),
                       ),
                     ),
@@ -194,17 +181,15 @@ class _MyDashboardState extends State<MyDashboard> {
               ),
             ),
           ),
-
-          // ── ADD BUTTON ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: _AppBarBtn(
               onTap: _showAddOptions,
               filled: true,
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.add_rounded, size: 16, color: Colors.black),
+                  Icon(Icons.add_rounded, size: 16, color: c.onPrimary),
                   SizedBox(width: 4),
                   Text(
                     "Add",
@@ -212,7 +197,7 @@ class _MyDashboardState extends State<MyDashboard> {
                       fontFamily: 'NotoSans',
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: c.onPrimary,
                     ),
                   ),
                 ],
@@ -221,69 +206,78 @@ class _MyDashboardState extends State<MyDashboard> {
           ),
         ],
       ),
-
       body: RefreshIndicator(
-        color: _kGreen,
-        backgroundColor: _kCardAlt,
+        color: c.primary,
+        backgroundColor: c.surfaceContainerHigh,
         onRefresh: () async => _loadItems(),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
           children: [
-            // ── HERO ─────────────────────────────────────────────────────
             _HeroCard(
               expiringSoonCount: expiringSoon.length,
               healthPct: healthPct,
             ),
-
             const SizedBox(height: 28),
-
-            // ── STATS ROW ─────────────────────────────────────────────────
             const _Label("Overview"),
             const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _Stat(
-                    label: "Total",
-                    value: total,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _Stat(
+            if (isCompact)
+              Column(
+                children: [
+                  _Stat(label: "Total", value: total, color: c.onSurface),
+                  const SizedBox(height: 12),
+                  _Stat(
                     label: "Expiring",
                     value: expiringSoon.length,
-                    color: _kOrange,
+                    color: StatusColors.orange,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _Stat(label: "Expired", value: expired, color: _kRed),
-                ),
-              ],
-            ),
-
+                  const SizedBox(height: 12),
+                  _Stat(label: "Expired", value: expired, color: StatusColors.red),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _Stat(
+                      label: "Total",
+                      value: total,
+                      color: c.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _Stat(
+                      label: "Expiring",
+                      value: expiringSoon.length,
+                      color: StatusColors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _Stat(
+                      label: "Expired",
+                      value: expired,
+                      color: StatusColors.red,
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 28),
-
-            // ── EXPIRING SOON ─────────────────────────────────────────────
             Row(
               children: [
                 const Expanded(child: _Label("Expiring Soon")),
                 if (expiringSoon.isNotEmpty)
                   Text(
                     "${expiringSoon.length} item${expiringSoon.length == 1 ? '' : 's'}",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'NotoSans',
                       fontSize: 13,
-                      color: Colors.white38,
+                      color: c.onSurfaceVariant,
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 14),
-
             if (expiringSoon.isEmpty)
               _EmptyBanner()
             else
@@ -295,6 +289,176 @@ class _MyDashboardState extends State<MyDashboard> {
                 );
               }),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotifications(BuildContext context, List<InventoryItem> expiring) {
+    final today = DateTime.now();
+    final c = AppColors.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // drag handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: c.dragHandle,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Text(
+                'Notifications',
+                style: TextStyle(
+                  fontFamily: 'NotoSans',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: c.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (expiring.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.notifications_none_rounded,
+                          color: c.onSurfaceVariant.withValues(alpha: 0.4),
+                          size: 36,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No upcoming expirations',
+                          style: TextStyle(
+                            fontFamily: 'NotoSans',
+                            fontSize: 14,
+                            color: c.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...expiring.take(8).map((item) {
+                  final days = item.expiryDate.difference(today).inDays;
+                  final color = days == 0 ? StatusColors.red : StatusColors.orange;
+                  final label = days == 0
+                      ? 'Expires today'
+                      : days == 1
+                      ? 'Expires tomorrow'
+                      : 'Expires in $days days';
+
+                  final hasImage =
+                      item.imageUrl != null && item.imageUrl!.isNotEmpty;
+                  final isLocal =
+                      hasImage && !item.imageUrl!.startsWith('http');
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: color.withValues(alpha: 0.15)),
+                    ),
+                    child: Row(
+                      children: [
+                        if (hasImage)
+                          Container(
+                            width: 32,
+                            height: 32,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: color.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: isLocal
+                                  ? Image.file(
+                                      File(item.imageUrl!),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 16,
+                                        color: color,
+                                      ),
+                                    )
+                                  : Image.network(
+                                      item.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 16,
+                                        color: color,
+                                      ),
+                                    ),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              size: 18,
+                              color: color,
+                            ),
+                          ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: TextStyle(
+                                  fontFamily: 'NotoSans',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.onSurface,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontFamily: 'NotoSans',
+                                  fontSize: 12,
+                                  color: color,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
       ),
     );
@@ -321,43 +485,46 @@ class _HeroCard extends StatelessWidget {
       : "Check the expiring items below.";
 
   Color _hColor(double p) {
-    if (p > 0.6) return _kGreen;
-    if (p > 0.3) return _kOrange;
-    return _kRed;
+    if (p > 0.6) return StatusColors.green;
+    if (p > 0.3) return StatusColors.orange;
+    return StatusColors.red;
   }
 
   @override
   Widget build(BuildContext context) {
     final hc = _hColor(healthPct);
+    final c = AppColors.of(context);
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A3D2B), Color(0xFF0D2318)],
+        gradient: LinearGradient(
+          colors: [c.heroGradientStart, c.heroGradientEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kGreen.withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: hc.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              const Text(
+              Text(
                 "KITCHEN HEALTH",
                 style: TextStyle(
                   fontFamily: 'NotoSans',
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.4,
-                  color: Colors.white38,
+                  color: c.onSurfaceVariant,
                 ),
               ),
-              const Spacer(),
-              // health pill
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -388,22 +555,26 @@ class _HeroCard extends StatelessWidget {
 
           Text(
             _headline,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'NotoSans',
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: c.onSurface,
               height: 1.25,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 5),
           Text(
             _sub,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'NotoSans',
               fontSize: 13,
-              color: Colors.white54,
+              color: c.onSurfaceVariant,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
 
           const SizedBox(height: 20),
@@ -414,7 +585,7 @@ class _HeroCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: healthPct,
               minHeight: 5,
-              backgroundColor: Colors.white10,
+              backgroundColor: c.surfaceContainerHigh,
               valueColor: AlwaysStoppedAnimation<Color>(hc),
             ),
           ),
@@ -436,12 +607,15 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: c.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kBorder),
+        border: Border.all(
+          color: c.outlineVariant.withValues(alpha: 0.45),
+        ),
       ),
       child: Column(
         children: [
@@ -461,10 +635,10 @@ class _Stat extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'NotoSans',
               fontSize: 12,
-              color: Colors.white38,
+              color: c.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -483,7 +657,7 @@ class _ExpiryRow extends StatelessWidget {
 
   const _ExpiryRow({required this.item, required this.daysLeft});
 
-  Color get _color => daysLeft == 0 ? _kRed : _kOrange;
+  Color get _color => daysLeft == 0 ? StatusColors.red : StatusColors.orange;
 
   String get _badge {
     if (daysLeft == 0) return "Today";
@@ -493,33 +667,73 @@ class _ExpiryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final bool hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
+    final bool isLocal = hasImage && !item.imageUrl!.startsWith('http');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: c.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kBorder),
+        border: Border.all(
+          color: c.outlineVariant.withValues(alpha: 0.45),
+        ),
       ),
       child: Row(
         children: [
-          // glowing dot
-          Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.only(right: 14),
-            decoration: BoxDecoration(
-              color: _color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _color.withValues(alpha: 0.5),
-                  blurRadius: 6,
-                  spreadRadius: 1,
-                ),
-              ],
+          // Product image or glowing dot
+          if (hasImage)
+            Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: c.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _color.withValues(alpha: 0.3)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: isLocal
+                    ? Image.file(
+                        File(item.imageUrl!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Icon(
+                          Icons.fastfood_outlined,
+                          size: 16,
+                          color: _color,
+                        ),
+                      )
+                    : Image.network(
+                        item.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Icon(
+                          Icons.fastfood_outlined,
+                          size: 16,
+                          color: _color,
+                        ),
+                      ),
+              ),
+            )
+          else
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: _color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _color.withValues(alpha: 0.5),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
             ),
-          ),
 
           Expanded(
             child: Column(
@@ -527,20 +741,23 @@ class _ExpiryRow extends StatelessWidget {
               children: [
                 Text(
                   item.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'NotoSans',
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
+                    color: c.onSurface,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (item.category != null && item.category!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     item.category!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'NotoSans',
                       fontSize: 12,
-                      color: Colors.white38,
+                      color: c.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -581,23 +798,26 @@ class _ExpiryRow extends StatelessWidget {
 class _EmptyBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 28),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: c.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kBorder),
+        border: Border.all(
+          color: c.outlineVariant.withValues(alpha: 0.45),
+        ),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.check_circle_outline_rounded, color: _kGreen, size: 36),
+          Icon(Icons.check_circle_outline_rounded, color: StatusColors.green, size: 36),
           SizedBox(height: 10),
           Text(
             "Nothing expiring soon",
             style: TextStyle(
               fontFamily: 'NotoSans',
               fontWeight: FontWeight.w600,
-              color: Colors.white70,
+              color: c.onSurface,
             ),
           ),
           SizedBox(height: 4),
@@ -606,7 +826,7 @@ class _EmptyBanner extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'NotoSans',
               fontSize: 13,
-              color: Colors.white38,
+              color: c.onSurfaceVariant,
             ),
           ),
         ],
@@ -638,6 +858,7 @@ class _AppBarBtnState extends State<_AppBarBtn> {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return GestureDetector(
       onTapDown: (_) => setState(() => _scale = 0.88),
       onTapUp: (_) {
@@ -654,13 +875,14 @@ class _AppBarBtnState extends State<_AppBarBtn> {
               ? const EdgeInsets.symmetric(horizontal: 14, vertical: 7)
               : const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: widget.filled
-                ? _kGreen
-                : Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(widget.filled ? 8 : 8),
+            color: widget.filled ? c.primary : c.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(8),
             border: widget.filled
                 ? null
-                : Border.all(color: _kBorder, width: 1),
+                : Border.all(
+                    color: c.outlineVariant.withValues(alpha: 0.45),
+                    width: 1,
+                  ),
           ),
           child: widget.child,
         ),
@@ -679,11 +901,11 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontFamily: 'NotoSans',
       fontSize: 17,
       fontWeight: FontWeight.w700,
-      color: Colors.white,
+      color: AppColors.of(context).onSurface,
     ),
   );
 }
@@ -727,9 +949,10 @@ class _AddTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return Material(
       borderRadius: BorderRadius.circular(8),
-      color: _kGreen.withValues(alpha: 0.07),
+      color: c.primary.withValues(alpha: 0.07),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         splashColor: Colors.transparent,
@@ -743,33 +966,40 @@ class _AddTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _kGreen.withValues(alpha: 0.15),
+                  color: c.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: _kGreen, size: 20),
+                child: Icon(icon, color: c.primary, size: 20),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontFamily: 'NotoSans',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontFamily: 'NotoSans',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: c.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    sub,
-                    style: const TextStyle(
-                      fontFamily: 'NotoSans',
-                      fontSize: 12,
-                      color: Colors.white38,
+                    const SizedBox(height: 2),
+                    Text(
+                      sub,
+                      style: TextStyle(
+                        fontFamily: 'NotoSans',
+                        fontSize: 12,
+                        color: c.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

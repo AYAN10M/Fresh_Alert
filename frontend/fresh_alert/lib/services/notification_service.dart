@@ -67,4 +67,27 @@ class NotificationService {
   Future<void> cancelAll() async {
     await _notifications.cancelAll();
   }
+
+  /// Returns the number of days before expiry to send a notification,
+  /// based on the item's category.
+  int getLeadDays(String? category) {
+    switch (category) {
+      case 'Dairy':
+        return 2;
+      case 'Meat':
+        return 1;
+      case 'Vegetables':
+        return 2;
+      case 'Fruits':
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
+  /// Returns the count of currently scheduled (pending) notifications.
+  Future<int> getPendingNotificationCount() async {
+    final pending = await _notifications.pendingNotificationRequests();
+    return pending.length;
+  }
 }

@@ -12,7 +12,13 @@ class QrScannerScreen extends StatefulWidget {
 class _QrScannerScreenState extends State<QrScannerScreen>
     with WidgetsBindingObserver {
   final MobileScannerController controller = MobileScannerController(
-    formats: [BarcodeFormat.qrCode],
+    formats: [
+      BarcodeFormat.qrCode,
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+    ],
     autoStart: false,
   );
 
@@ -88,7 +94,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Scan QR Code',
+          'Scan Code',
           style: TextStyle(color: Colors.white),
         ),
         actions: [
@@ -134,7 +140,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text(
-                'Position the QR code within the frame',
+                'Position the barcode or QR code within the frame',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
